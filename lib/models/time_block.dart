@@ -40,8 +40,7 @@ class TimeBlock {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
+    final map = <String, dynamic>{
       'start_time': startTime.toIso8601String(),
       'end_time': endTime.toIso8601String(),
       'category_id': categoryId,
@@ -49,6 +48,11 @@ class TimeBlock {
       'intensities': jsonEncode(intensities),
       'calculated_color': calculatedColor,
     };
+    
+    if (id != null) {
+      map['id'] = id;
+    }
+    return map;
   }
 
   factory TimeBlock.fromMap(Map<String, dynamic> map) {

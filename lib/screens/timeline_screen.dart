@@ -6,6 +6,8 @@ import '../models/category.dart';
 import '../logic/timeline_engine.dart';
 import '../logic/timeline_segment.dart';
 import '../widgets/timeline/timeline_canvas.dart';
+import '../widgets/timeline/quick_log_sheet.dart';
+import '../widgets/timeline/date_selector.dart';
 
 class TimelineScreen extends StatefulWidget {
   const TimelineScreen({super.key});
@@ -18,18 +20,28 @@ class _TimelineScreenState extends State<TimelineScreen> {
   final TimelineEngine _engine = const TimelineEngine();
   List<TimelineSegment> _segments = [];
   Map<int, ActivityCategory> _categories = {};
-  DateTime _currentTime = DateTime.now();
+
+  DateTime _currentTime = DateTime.now(); // For the Playhead
+  late DateTime _selectedDate; // NEW: For navigating days
+
   Timer? _timer;
   String? _errorMessage;
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
+    _selectedDate = DateTime.now(); // Default to today
     _loadData();
+
     _timer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) {
         setState(() {
           _currentTime = DateTime.now();
-          _loadData();
+          // Only force a heavy DB reload on the timer if we are actually viewing today
+          if (DateUtils.isSameDay(_selectedDate, _currentTime)) {
+            _loadData();
+          }
         });
       }
     });
@@ -41,12 +53,22 @@ class _TimelineScreenState extends State<TimelineScreen> {
     super.dispose();
   }
 
+  // Handle user changing the date via the DateSelector
+  void _onDateChanged(DateTime newDate) {
+    setState(() {
+      _selectedDate = newDate;
+      _isLoading = true;
+    });
+    _loadData();
+  }
+
   Future<void> _loadData() async {
     try {
+      // FIX: Query using _selectedDate instead of _currentTime
       final DateTime startOfDay = DateTime(
-        _currentTime.year,
-        _currentTime.month,
-        _currentTime.day,
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
       );
       final DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
@@ -63,26 +85,58 @@ class _TimelineScreenState extends State<TimelineScreen> {
       if (mounted) {
         setState(() {
           _categories = categoryMap;
-          _segments = _engine.generateSegments(_currentTime, blocks);
-          _errorMessage = null; // Clear any old errors
+          // Generate segments based on the selected target date
+          _segments = _engine.generateSegments(startOfDay, blocks);
+          _errorMessage = null;
+          _isLoading = false;
         });
       }
     } catch (e) {
-      // NEW: Catch the silent crash and update the UI
       if (mounted) {
         setState(() {
           _errorMessage = e.toString();
+          _isLoading = false;
         });
       }
     }
   }
 
   void _handleGapTap(TimelineSegment segment) {
-    // Phase 4: Trigger Bottom Sheet pre-filled with this gap's start/end time
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => QuickLogSheet(
+        initialStartTime: segment.startTime,
+        initialEndTime: segment.endTime,
+        categories: _categories.values.toList(),
+      ),
+    ).then((didSave) {
+      if (didSave == true) _loadData();
+    });
   }
 
   void _handleBlockTap(TimelineSegment segment) {
-    // Phase 4: Trigger Bottom Sheet in Edit Mode with this block's data
+    if (segment.block == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => QuickLogSheet(
+        initialStartTime: segment.startTime,
+        initialEndTime: segment.endTime,
+        categories: _categories.values.toList(),
+        existingBlock: segment.block,
+      ),
+    ).then((didSave) {
+      if (didSave == true) _loadData();
+    });
   }
 
   @override
@@ -90,7 +144,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F14),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFF1E1E1E),
         elevation: 0,
         title: const Text(
           'LIFE GUI',
@@ -98,33 +152,44 @@ class _TimelineScreenState extends State<TimelineScreen> {
         ),
         centerTitle: true,
       ),
-      body: _errorMessage != null
-          ? Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Center(
-                child: Text(
-                  'DATABASE ERROR:\n\n$_errorMessage',
-                  style: const TextStyle(
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.bold,
+      body: Column(
+        children: [
+          DateSelector(
+            selectedDate: _selectedDate,
+            onDateChanged: _onDateChanged,
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                ? Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Center(
+                      child: Text(
+                        'DATABASE ERROR:\n\n$_errorMessage',
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 120, top: 10),
+                    child: TimelineCanvas(
+                      segments: _segments,
+                      categories: _categories,
+                      engine: _engine,
+                      currentTime: _currentTime,
+                      selectedDate: _selectedDate, // Passed down!
+                      onGapTap: _handleGapTap,
+                      onBlockTap: _handleBlockTap,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            )
-          : _categories.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 120, top: 20),
-              child: TimelineCanvas(
-                segments: _segments,
-                categories: _categories,
-                engine: _engine,
-                currentTime: _currentTime,
-                onGapTap: _handleGapTap,
-                onBlockTap: _handleBlockTap,
-              ),
-            ),
+          ),
+        ],
+      ),
     );
   }
 }

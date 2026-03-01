@@ -3,11 +3,9 @@ import 'timeline_segment.dart';
 
 class TimelineEngine {
   final double pixelsPerHour;
-  final double minBlockHeight;
 
   const TimelineEngine({
-    this.pixelsPerHour = 120.0,
-    this.minBlockHeight = 48.0,
+    this.pixelsPerHour = 240.0, 
   });
 
   double get pixelsPerMinute => pixelsPerHour / 60.0;
@@ -23,19 +21,10 @@ class TimelineEngine {
 
     for (final block in blocks) {
       if (block.startTime.isAfter(currentTime)) {
-        segments.add(TimelineSegment(
-          startTime: currentTime,
-          endTime: block.startTime,
-          isGap: true,
-        ));
+        segments.add(TimelineSegment(startTime: currentTime, endTime: block.startTime, isGap: true));
       }
 
-      segments.add(TimelineSegment(
-        startTime: block.startTime,
-        endTime: block.endTime,
-        isGap: false,
-        block: block,
-      ));
+      segments.add(TimelineSegment(startTime: block.startTime, endTime: block.endTime, isGap: false, block: block));
 
       if (block.endTime.isAfter(currentTime)) {
         currentTime = block.endTime;
@@ -43,19 +32,14 @@ class TimelineEngine {
     }
 
     if (currentTime.isBefore(endOfDay)) {
-      segments.add(TimelineSegment(
-        startTime: currentTime,
-        endTime: endOfDay,
-        isGap: true,
-      ));
+      segments.add(TimelineSegment(startTime: currentTime, endTime: endOfDay, isGap: true));
     }
 
     return segments;
   }
 
   double calculateHeight(Duration duration) {
-    final double rawHeight = duration.inMinutes * pixelsPerMinute;
-    return rawHeight < minBlockHeight ? minBlockHeight : rawHeight;
+    return duration.inMinutes * pixelsPerMinute; 
   }
 
   double calculateOffsetFromMidnight(DateTime time) {

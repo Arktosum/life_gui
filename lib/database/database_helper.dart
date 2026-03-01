@@ -75,14 +75,49 @@ class DatabaseHelper {
     return await db.insert('categories', category.toMap());
   }
 
-  Future<List<ActivityCategory>> getActiveCategories() async {
+  Future<ActivityCategory> getOrCreateCategory(String name) async {
     final db = await instance.database;
+
+    // 1. Search the DB for an exact name match (case-insensitive)
     final result = await db.query(
       'categories',
-      where: 'is_active = ?',
-      orderBy: 'name ASC',
+      where: 'LOWER(name) = ?',
+      whereArgs: [name.toLowerCase()],
     );
-    return result.map((json) => ActivityCategory.fromMap(json)).toList();
+
+    // 2. If it exists, return it (and revive it if it was archived!)
+    if (result.isNotEmpty) {
+      final existing = ActivityCategory.fromMap(result.first);
+      if (!existing.isActive) {
+        final revived = existing.copyWith(isActive: true);
+        await updateCategory(revived);
+        return revived;
+      }
+      return existing;
+    }
+
+    // 3. If it truly does not exist, safely create it.
+    final colors = [0xFF3F51B5, 0xFFE91E63, 0xFF9C27B0, 0xFF009688, 0xFFFF9800];
+    final newCat = ActivityCategory(
+      name: name,
+      colorVal: colors[name.length % colors.length],
+    );
+    final newId = await db.insert('categories', newCat.toMap());
+
+    return newCat.copyWith(id: newId);
+  }
+
+  Future<List<ActivityCategory>> getActiveCategories() async {
+    final db = await instance.database;
+
+    // FIX: Ask SQLite for EVERYTHING, no WHERE clause.
+    final result = await db.query('categories', orderBy: 'name ASC');
+
+    // Filter the active ones safely in Dart!
+    return result
+        .map((json) => ActivityCategory.fromMap(json))
+        .where((category) => category.isActive)
+        .toList();
   }
 
   Future<int> updateCategory(ActivityCategory category) async {
@@ -100,7 +135,10 @@ class DatabaseHelper {
     return await db.insert('time_blocks', block.toMap());
   }
 
-  Future<List<TimeBlock>> getTimeBlocksForDateRange(DateTime start, DateTime end) async {
+  Future<List<TimeBlock>> getTimeBlocksForDateRange(
+    DateTime start,
+    DateTime end,
+  ) async {
     final db = await instance.database;
     final result = await db.query(
       'time_blocks',
@@ -123,11 +161,7 @@ class DatabaseHelper {
 
   Future<int> deleteTimeBlock(int id) async {
     final db = await instance.database;
-    return await db.delete(
-      'time_blocks',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('time_blocks', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> deleteOverlappingBlocks(DateTime start, DateTime end) async {

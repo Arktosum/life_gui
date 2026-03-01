@@ -10,7 +10,8 @@ class TimelineCanvas extends StatelessWidget {
   final List<TimelineSegment> segments;
   final Map<int, ActivityCategory> categories;
   final TimelineEngine engine;
-  final DateTime currentTime;
+  final DateTime currentTime; // Still DateTime.now()
+  final DateTime selectedDate; // NEW: The day we are currently viewing
   final Function(TimelineSegment) onGapTap;
   final Function(TimelineSegment) onBlockTap;
 
@@ -20,12 +21,15 @@ class TimelineCanvas extends StatelessWidget {
     required this.categories,
     required this.engine,
     required this.currentTime,
+    required this.selectedDate, // ADD THIS
     required this.onGapTap,
     required this.onBlockTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bool isToday = DateUtils.isSameDay(selectedDate, currentTime);
+
     return SizedBox(
       height: 24 * engine.pixelsPerHour,
       child: Stack(
@@ -33,7 +37,8 @@ class TimelineCanvas extends StatelessWidget {
         children: [
           _buildBackgroundGutter(),
           ..._buildSegments(),
-          _buildPlayhead(),
+          if (isToday)
+            _buildPlayhead(), // FIX: Only draw playhead if viewing Today!
         ],
       ),
     );
@@ -98,7 +103,13 @@ class TimelineCanvas extends StatelessWidget {
                 onTap: () => onBlockTap(segment),
                 child: SolidSegmentWidget(
                   block: segment.block!,
-                  category: categories[segment.block!.categoryId]!,
+                  category:
+                      categories[segment.block!.categoryId] ??
+                      ActivityCategory(
+                        name:
+                            'UNKNOWN (ID: ${segment.block!.categoryId})', // Tell us the ID!
+                        colorVal: 0xFF9E9E9E,
+                      ),
                   height: height,
                 ),
               ),

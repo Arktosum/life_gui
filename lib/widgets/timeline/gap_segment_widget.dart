@@ -22,14 +22,12 @@ class GapSegmentWidget extends StatelessWidget {
         width: double.infinity,
         margin: const EdgeInsets.only(right: 16, bottom: 2),
         decoration: BoxDecoration(
+          // FIX: Cranked the opacity up to 0.15 for the fill and 0.8 for the border
           color: isPast
-              ? Colors.redAccent.withOpacity(0.05)
+              ? Colors.redAccent.withOpacity(0.15)
               : Colors.transparent,
           border: isPast
-              ? Border.all(
-                  color: Colors.redAccent.withOpacity(0.3),
-                  style: BorderStyle.solid,
-                )
+              ? Border.all(color: Colors.redAccent.withOpacity(0.8), width: 2.0)
               : Border.all(
                   color: Colors.white.withOpacity(0.05),
                   style: BorderStyle.solid,
