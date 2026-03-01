@@ -1,34 +1,42 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'screens/calendar_screen.dart'; // Update import
+import 'package:flutter/services.dart';
+import 'screens/timeline_screen.dart';
 
 void main() {
-  runApp(const ProviderScope(child: LifeLoggerApp()));
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
+
+  runApp(const LifeGuiApp());
 }
 
-class LifeLoggerApp extends StatelessWidget {
-  const LifeLoggerApp({super.key});
+class LifeGuiApp extends StatelessWidget {
+  const LifeGuiApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LIFE GUI',
+      title: 'Life GUI',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        // Apply the sleek 'Inter' font to the whole app
-        textTheme: GoogleFonts.interTextTheme(
-          Theme.of(context).textTheme,
-        ).apply(bodyColor: Colors.white, displayColor: Colors.white),
+        scaffoldBackgroundColor: const Color(0xFF0F0F14),
+        primaryColor: Colors.deepPurpleAccent,
         colorScheme: const ColorScheme.dark(
           primary: Colors.deepPurpleAccent,
           surface: Color(0xFF1E1E1E),
         ),
-        useMaterial3: true,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
       ),
-      home: const CalendarScreen(),
+      home: const TimelineScreen(),
     );
   }
 }
