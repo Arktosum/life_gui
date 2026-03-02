@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../logic/timeline_engine.dart';
-import '../../logic/timeline_segment.dart';
 import '../../models/category.dart';
 import 'solid_segment_widget.dart';
 import 'gap_segment_widget.dart';

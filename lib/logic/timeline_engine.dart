@@ -1,30 +1,70 @@
 import '../models/time_block.dart';
-import 'timeline_segment.dart';
+
+// THE MISSING CLASS!
+class TimelineSegment {
+  final DateTime startTime;
+  final DateTime endTime;
+  final bool isGap;
+  final TimeBlock? block;
+
+  TimelineSegment({
+    required this.startTime,
+    required this.endTime,
+    required this.isGap,
+    this.block,
+  });
+}
 
 class TimelineEngine {
-  final double pixelsPerHour;
-
-  const TimelineEngine({
-    this.pixelsPerHour = 240.0, 
-  });
-
-  double get pixelsPerMinute => pixelsPerHour / 60.0;
-
-  List<TimelineSegment> generateSegments(DateTime targetDate, List<TimeBlock> blocks) {
+  List<TimelineSegment> generateSegments(
+    DateTime targetDate,
+    List<TimeBlock> blocks, {
+    DateTime? playheadTime,
+  }) {
     final List<TimelineSegment> segments = [];
-    final DateTime startOfDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    final DateTime startOfDay = DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+    );
     final DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
     DateTime currentTime = startOfDay;
-
     blocks.sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    void addGap(DateTime start, DateTime end) {
+      if (start.isAtSameMomentAs(end) || start.isAfter(end)) return;
+
+      // Slice the gap at the red playhead!
+      if (playheadTime != null &&
+          playheadTime.isAfter(start) &&
+          playheadTime.isBefore(end)) {
+        segments.add(
+          TimelineSegment(startTime: start, endTime: playheadTime, isGap: true),
+        );
+        segments.add(
+          TimelineSegment(startTime: playheadTime, endTime: end, isGap: true),
+        );
+      } else {
+        segments.add(
+          TimelineSegment(startTime: start, endTime: end, isGap: true),
+        );
+      }
+    }
 
     for (final block in blocks) {
       if (block.startTime.isAfter(currentTime)) {
-        segments.add(TimelineSegment(startTime: currentTime, endTime: block.startTime, isGap: true));
+        addGap(currentTime, block.startTime);
       }
 
-      segments.add(TimelineSegment(startTime: block.startTime, endTime: block.endTime, isGap: false, block: block));
+      segments.add(
+        TimelineSegment(
+          startTime: block.startTime,
+          endTime: block.endTime,
+          isGap: false,
+          block: block,
+        ),
+      );
 
       if (block.endTime.isAfter(currentTime)) {
         currentTime = block.endTime;
@@ -32,18 +72,9 @@ class TimelineEngine {
     }
 
     if (currentTime.isBefore(endOfDay)) {
-      segments.add(TimelineSegment(startTime: currentTime, endTime: endOfDay, isGap: true));
+      addGap(currentTime, endOfDay);
     }
 
     return segments;
-  }
-
-  double calculateHeight(Duration duration) {
-    return duration.inMinutes * pixelsPerMinute; 
-  }
-
-  double calculateOffsetFromMidnight(DateTime time) {
-    final int minutesSinceMidnight = time.hour * 60 + time.minute;
-    return minutesSinceMidnight * pixelsPerMinute;
   }
 }
