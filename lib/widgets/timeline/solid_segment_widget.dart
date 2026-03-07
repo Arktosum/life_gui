@@ -39,22 +39,17 @@ class SolidSegmentWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       );
     } else if (isGhost) {
-      // PLANNED (GHOST): The Blueprint Look
+      // PLANNED (GHOST): The Blueprint Look (FIXED: Uniform Border)
       decoration = BoxDecoration(
-        color: baseColor.withOpacity(0.03), // Frosted, barely-there background
-        border: Border(
-          left: BorderSide(
-            color: baseColor.withOpacity(0.8),
-            width: 3,
-          ), // Glowing left edge
-          top: BorderSide(color: baseColor.withOpacity(0.15), width: 1),
-          right: BorderSide(color: baseColor.withOpacity(0.15), width: 1),
-          bottom: BorderSide(color: baseColor.withOpacity(0.15), width: 1),
-        ),
+        color: baseColor.withOpacity(0.05),
+        border: Border.all(
+          color: baseColor.withOpacity(0.4),
+          width: 1.5,
+        ), // Uniform border prevents the crash!
         borderRadius: BorderRadius.circular(8),
       );
     } else {
-      // COMPLETED: The Solid Look
+      // COMPLETED: The Solid Look (Works because radius is only on the right, border is only on the left)
       decoration = BoxDecoration(
         color: baseColor.withOpacity(0.15),
         border: Border(

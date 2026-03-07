@@ -21,7 +21,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3, // Version 3: The Plutchik Mood Upgrade
+      version: 4, // FIX: Bumped to Version 4 for Daily Journals!
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -66,18 +66,30 @@ class DatabaseHelper {
     for (var cat in defaultCategories) {
       await db.insert('categories', cat);
     }
+
+    // NEW: Daily Journals Table
+    await db.execute('''
+      CREATE TABLE daily_journals (
+        date_id TEXT PRIMARY KEY,
+        content TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Version 2: Added the Planner State Machine
+    if (oldVersion < 2)
       await db.execute(
         "ALTER TABLE time_blocks ADD COLUMN status TEXT NOT NULL DEFAULT 'completed'",
       );
-    }
-    if (oldVersion < 3) {
-      // Version 3: Added the Plutchik Mood Studio
-      await _createMoodTable(db);
+    if (oldVersion < 3) await _createMoodTable(db);
+    if (oldVersion < 4) {
+      // Version 4 Upgrade: Add the Diary!
+      await db.execute('''
+        CREATE TABLE daily_journals (
+          date_id TEXT PRIMARY KEY,
+          content TEXT NOT NULL
+        )
+      ''');
     }
   }
 
@@ -309,5 +321,29 @@ class DatabaseHelper {
   Future<int> deleteMoodPreset(int id) async {
     final db = await instance.database;
     return await db.delete('mood_presets', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // --- DAILY JOURNAL OPERATIONS ---
+
+  Future<String?> getJournalContent(String dateId) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'daily_journals',
+      where: 'date_id = ?',
+      whereArgs: [dateId],
+    );
+    if (result.isNotEmpty) {
+      return result.first['content'] as String;
+    }
+    return null;
+  }
+
+  Future<int> saveJournalContent(String dateId, String content) async {
+    final db = await instance.database;
+    return await db.insert(
+      'daily_journals',
+      {'date_id': dateId, 'content': content},
+      conflictAlgorithm: ConflictAlgorithm.replace, // Overwrites if it exists!
+    );
   }
 }
